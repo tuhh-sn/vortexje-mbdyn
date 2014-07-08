@@ -1,0 +1,115 @@
+### MBDyn input file for socket based coupling 
+# -one rotational point BODY0
+
+set:	real Theta0 = pi/6.; 		# start angle of vawt
+set:	real R = 2.5;				# rotational radius
+set:	real Theta = 5. * 6. / R;	# (initial) rotational speed
+set:	real dt = 0.0033;			# time step delta
+set:	real Weight = 100;			# [kg] weight per wing
+set:	integer N = 2;				# number of wings
+
+begin: data;
+	problem: initial value;
+end: data;
+
+begin: initial value;
+	initial time: 0.;
+	final time: 0.5;
+	time step: dt;
+
+	max iterations: 100;
+	tolerance: 1.e-6;
+
+	linear solver: 
+		naive;
+
+	output: iterations;
+	
+  derivatives tolerance: 1e-1;
+  derivatives max iterations: 20;
+
+end: initial value;
+
+begin: control data;
+	structural nodes: 
+		+2    # 
+	;
+	rigid bodies:
+		+1    # 
+	;
+	joints:
+		+2    # 
+	;
+	forces: 1;
+
+	default output: all, reference frames;
+end: control data;
+
+set: integer GROUND = 1;
+set: integer BODY0 = 2;
+
+reference: GROUND,
+	reference, global, null,
+	reference, global, eye,
+	reference, global, null,
+	reference, global, null;
+
+reference: BODY0,
+	reference, GROUND, null,
+	reference, GROUND, euler123, 0., 0., Theta0-Theta*dt,	# initial rotation
+	reference, GROUND, null,
+	reference, GROUND, null;
+
+begin: nodes;
+	structural: 1000+GROUND, static,
+		null,
+		eye,
+		null,
+		null;
+
+	structural: 1000+BODY0, dynamic,
+		reference, BODY0, null,
+		reference, BODY0, eye,
+		reference, BODY0, null,
+		reference, BODY0, 0., 0., Theta;
+end: nodes;
+
+begin: elements;
+	joint: 1, clamp, 1000+GROUND, node, node;
+
+	body: 1, 1000+BODY0, 
+		Weight*N,
+		reference, node, R, 0.,0.,
+		null;
+
+### rotation by 'revolute hinge'
+	joint: 2, revolute hinge,
+		1000+GROUND,
+			position, null,
+        1000+BODY0,
+			reference, GROUND, null,							# rotating point position
+                hinge, #reference, node, 
+                   1, 1.,0.,0., 2, 0.,1.,0. ;
+
+	force: 3, external structural,
+		socket,
+		create, yes,
+		port, 7771,
+		coupling,
+#			loose,
+			tight,
+#			staggered,
+		reference node, 1000+GROUND,
+		labels, no,
+		orientation, orientation matrix, # default
+		use reference node forces , no,
+		1,
+			1000+BODY0;
+
+end: elements;
+
+
+
+
+
+
