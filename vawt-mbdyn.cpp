@@ -33,7 +33,6 @@ typedef Map<Matrix<double,Dynamic,1> > MapVecDynamic;
 #define MILL_RADIUS     2.5
 #define TIP_SPEED_RATIO 5
 #define WIND_VELOCITY   6
-//#define INCLUDE_TOWER
 #define END_TIME 0.5
 
 class Blade : public LiftingSurface
@@ -84,44 +83,6 @@ public:
     }
 };
 
-class Tower : public Surface
-{
-public:
-    // Constructor:
-    Tower()
-    {
-        // Create cylinder:      
-        SurfaceBuilder surface_builder(*this);
-        
-        const double r = 0.1;
-        const double h = 4.5;
-        
-        const int n_points = 32;
-        const int n_layers = 21;
-        
-        vector<int> prev_nodes;
-        
-        for (int i = 0; i < n_layers; i++) {
-            vector<Vector3d, Eigen::aligned_allocator<Vector3d> > points =
-                EllipseGenerator::generate(r, r, n_points);
-            for (int j = 0; j < (int) points.size(); j++)
-                points[j](2) += i * h / (double) (n_layers - 1);
-                 
-            vector<int> nodes = surface_builder.create_nodes_for_points(points);
-            
-            if (i > 0)
-                vector<int> airfoil_panels = surface_builder.create_panels_between_shapes(nodes, prev_nodes);
-                
-            prev_nodes = nodes;
-        }
-
-        surface_builder.finish();
-        
-        // Translate into the canonical coordinate system:
-        Vector3d translation(0.0, 0.0, -h / 2.0);
-        translate(translation);
-    }
-};
 
 class VAWT : public Body
 {
@@ -143,15 +104,7 @@ public:
         this->velocity = velocity;
         this->attitude = AngleAxis<double>(theta_0, Vector3d::UnitZ());
         this->rotational_velocity = dthetadt;
-        
-#ifdef INCLUDE_TOWER
-        // Initialize tower:
-        Surface *tower = new Tower();
-        add_non_lifting_surface(*tower);
-        
-        allocated_surfaces.push_back(tower);
-#endif
-        
+                
         // Initialize blades:
         for (int i = 0; i < n_blades; i++) {
             Blade *blade = new Blade();
